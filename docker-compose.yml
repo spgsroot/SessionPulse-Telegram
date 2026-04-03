@@ -1,0 +1,58 @@
+# SessionPulse — Standalone deployment
+#
+# Usage:
+#   docker compose up -d
+#
+# Requires ClickHouse and Kafka/Redpanda running externally,
+# or use this compose file alongside your existing infrastructure.
+#
+# Environment variables (set in .env or pass directly):
+#   CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD
+#   KAFKA_BOOTSTRAP, KAFKA_TOPIC
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (optional, for alert notifications)
+
+services:
+  session-pulse:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: session-pulse
+    restart: unless-stopped
+    ports:
+      - "8500:8500"
+    environment:
+      - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
+      - CLICKHOUSE_PORT=${CLICKHOUSE_PORT:-8123}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DATABASE:-observability}
+      - KAFKA_BOOTSTRAP=${KAFKA_BOOTSTRAP:-redpanda:29092}
+      - KAFKA_TOPIC=${KAFKA_TOPIC:-observability_events}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8500/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - session-pulse-net
+
+  session-pulse-dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: session-pulse-dashboard
+    restart: unless-stopped
+    ports:
+      - "5100:3000"
+    depends_on:
+      session-pulse:
+        condition: service_healthy
+    networks:
+      - session-pulse-net
+
+networks:
+  session-pulse-net:
+    driver: bridge
+    name: session-pulse-net

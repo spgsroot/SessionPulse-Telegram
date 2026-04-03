@@ -1,0 +1,91 @@
+rules:
+  # === Account Alerts ===
+
+  - name: account_offline
+    description: "Account in error or recovering state for >5 min"
+    condition_field: state
+    condition_op: "in"
+    condition_value: "error,recovering"
+    entity_type: account
+    severity: critical
+    cooldown_seconds: 900
+    for_seconds: 300
+    enabled: true
+    message_template: "\U0001F534 Account {entity_id} is in {state} state. {error}"
+
+  - name: account_banned
+    description: "Account banned by Telegram"
+    condition_field: state
+    condition_op: "=="
+    condition_value: "banned"
+    entity_type: account
+    severity: critical
+    cooldown_seconds: 0
+    for_seconds: 0
+    enabled: true
+    message_template: "\u26D4 Account {entity_id} BANNED by Telegram"
+
+  - name: account_throttled
+    description: "Account received FloodWait"
+    condition_field: state
+    condition_op: "=="
+    condition_value: "throttled"
+    entity_type: account
+    severity: warning
+    cooldown_seconds: 0
+    for_seconds: 0
+    enabled: true
+    message_template: "\U0001F7E1 Account {entity_id} throttled (FloodWait)"
+
+  - name: account_auth_expired
+    description: "Account session key expired"
+    condition_field: error_message
+    condition_op: contains
+    condition_value: "AuthKeyUnregistered"
+    entity_type: account
+    severity: critical
+    cooldown_seconds: 0
+    for_seconds: 0
+    enabled: true
+    message_template: "\U0001F511 Account {entity_id} session expired. Re-auth required."
+
+  # === Pipeline Alerts ===
+
+  - name: high_consumer_lag
+    description: "Kafka consumer falling behind"
+    entity_type: metric
+    metric_name: "pipeline:consume:consumer_lag"
+    metric_window: "1m"
+    condition_op: ">"
+    condition_value: "5000"
+    severity: warning
+    cooldown_seconds: 600
+    for_seconds: 120
+    enabled: true
+    message_template: "\U0001F4CA Consumer lag: {metric_value} events (threshold: 5000)"
+
+  - name: pipeline_error_spike
+    description: "Pipeline error rate exceeds threshold"
+    entity_type: metric
+    metric_name: "pipeline:store:errors"
+    metric_window: "5m"
+    condition_op: ">"
+    condition_value: "0.05"
+    severity: critical
+    cooldown_seconds: 300
+    for_seconds: 60
+    enabled: true
+    message_template: "\U0001F6A8 Pipeline error rate: {metric_value}"
+
+  - name: ml_scoring_slow
+    description: "ML scoring latency too high"
+    entity_type: metric
+    metric_name: "span:ml_scoring:duration_ms"
+    metric_window: "5m"
+    condition_op: ">"
+    condition_value: "5000"
+    severity: warning
+    cooldown_seconds: 900
+    for_seconds: 180
+    enabled: true
+    message_template: "\U0001F40C ML scoring latency: {metric_value}ms (threshold: 5000ms)"
