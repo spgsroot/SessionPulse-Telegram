@@ -72,7 +72,11 @@ class BatchProcessor:
 
         if entity_type == "account":
             self._sm.update_last_event(entity_id)
-            self._sm.update_metrics(entity_id, metric_name, metric_value)
+            # Update state machine with rolling rates (not raw values)
+            rate_1m = self._metrics.get_rate(key, "1m")
+            rate_5m = self._metrics.get_rate(key, "5m")
+            rate_15m = self._metrics.get_rate(key, "15m")
+            self._sm.update_metrics(entity_id, metric_name, rate_1m, rate_5m, rate_15m)
 
     async def _handle_event(self, event: dict) -> None:
         entity_id = event.get("entity_id", "")

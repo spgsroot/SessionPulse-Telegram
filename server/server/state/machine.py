@@ -99,12 +99,15 @@ class AccountStateMachine:
         if current_state is None:
             if new_state not in _INITIAL_STATES:
                 return False
+            metadata = kwargs.get("metadata", {})
             entry = AccountStateEntry(
                 phone=phone,
                 state=new_state,
                 error_message=kwargs.get("error", ""),
-                metadata=kwargs.get("metadata", {}),
+                metadata=metadata,
             )
+            if isinstance(metadata, dict) and "channels" in metadata:
+                entry.active_channels = int(metadata["channels"])
             self._states[phone] = entry
             self._dirty.add(phone)
             await self._broadcast_change(phone, "", new_state, **kwargs)
@@ -128,7 +131,10 @@ class AccountStateMachine:
         current.state = new_state
         current.state_since = datetime.now(timezone.utc)
         current.error_message = kwargs.get("error", "")
-        current.metadata = kwargs.get("metadata", {})
+        metadata = kwargs.get("metadata", {})
+        current.metadata = metadata
+        if isinstance(metadata, dict) and "channels" in metadata:
+            current.active_channels = int(metadata["channels"])
         self._dirty.add(phone)
 
         await self._broadcast_change(phone, old_state, new_state, **kwargs)
@@ -140,15 +146,18 @@ class AccountStateMachine:
             entry.last_event_at = datetime.now(timezone.utc)
 
     def update_metrics(
-        self, phone: str, metric_name: str, value: float
+        self, phone: str, metric_name: str,
+        rate_1m: float = 0, rate_5m: float = 0, rate_15m: float = 0,
     ) -> None:
         entry = self._states.get(phone)
         if not entry:
             return
         if metric_name == "messages_received":
-            entry.messages_1m = value
+            entry.messages_1m = rate_1m
+            entry.messages_5m = rate_5m
+            entry.messages_15m = rate_15m
         elif metric_name == "reactions_received":
-            entry.reactions_1m = value
+            entry.reactions_1m = rate_1m
 
     def get_all_states(self) -> list[dict]:
         return [
