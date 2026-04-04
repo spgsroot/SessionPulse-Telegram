@@ -4,6 +4,8 @@
 
 SessionPulse replaces generic monitoring (Grafana/Prometheus) with a purpose-built observability platform that understands your application's domain: account lifecycles, session health, subscription status, and event pipeline metrics.
 
+![preview](preview.jpg)
+
 ## Components
 
 | Component | Description | Port |
