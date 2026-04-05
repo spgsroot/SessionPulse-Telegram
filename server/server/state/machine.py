@@ -15,7 +15,7 @@ VALID_TRANSITIONS: dict[str, set[str]] = {
     "throttled": {"monitoring", "stopped", "error"},
     "recovering": {"monitoring", "stopped", "error"},
     "stopped": {"connecting", "monitoring", "deleted"},
-    "error": {"connecting", "monitoring", "deleted"},
+    "error": {"connecting", "monitoring", "stopped", "deleted"},
     "banned": set(),
     "deleted": set(),
 }
@@ -140,10 +140,17 @@ class AccountStateMachine:
         await self._broadcast_change(phone, old_state, new_state, **kwargs)
         return True
 
-    def update_last_event(self, phone: str, timestamp: str = "") -> None:
+    async def update_last_event(self, phone: str, timestamp: str = "") -> None:
         entry = self._states.get(phone)
         if entry:
             entry.last_event_at = datetime.now(timezone.utc)
+            # Auto-recover: fresh data from account means it's alive
+            if entry.state in ("error", "recovering"):
+                logger.info(
+                    f"Auto-recovery: {phone} received data while in "
+                    f"{entry.state}, transitioning to monitoring"
+                )
+                await self.transition(phone, "monitoring")
 
     def update_metrics(
         self, phone: str, metric_name: str,

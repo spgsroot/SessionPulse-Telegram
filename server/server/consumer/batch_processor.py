@@ -21,7 +21,7 @@ class BatchProcessor:
                 if event_type == "state_change":
                     await self._handle_state_change(event)
                 elif event_type == "metric":
-                    self._handle_metric(event)
+                    await self._handle_metric(event)
                 elif event_type == "event":
                     await self._handle_event(event)
                 elif event_type == "span":
@@ -60,7 +60,7 @@ class BatchProcessor:
             phone, new_state, error=error, metadata=metadata
         )
 
-    def _handle_metric(self, event: dict) -> None:
+    async def _handle_metric(self, event: dict) -> None:
         entity_type = event.get("entity_type", "")
         entity_id = event.get("entity_id", "")
         metric_name = event.get("metric_name", "")
@@ -71,7 +71,7 @@ class BatchProcessor:
         self._metrics.add_sample(key, metric_value, timestamp)
 
         if entity_type == "account":
-            self._sm.update_last_event(entity_id)
+            await self._sm.update_last_event(entity_id)
             # Update state machine with rolling rates (not raw values)
             rate_1m = self._metrics.get_rate(key, "1m")
             rate_5m = self._metrics.get_rate(key, "5m")
@@ -81,7 +81,7 @@ class BatchProcessor:
     async def _handle_event(self, event: dict) -> None:
         entity_id = event.get("entity_id", "")
         if event.get("entity_type") == "account":
-            self._sm.update_last_event(entity_id)
+            await self._sm.update_last_event(entity_id)
 
         try:
             await self._ws.broadcast(
